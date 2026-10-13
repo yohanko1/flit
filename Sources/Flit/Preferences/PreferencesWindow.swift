@@ -36,7 +36,7 @@ struct GeneralTab: View {
             Toggle("Launch at login", isOn: $prefs.launchAtLogin)
             Toggle("Show menu bar icon", isOn: $prefs.showMenuBarIcon)
             Toggle("Replace the system ⌘-Tab", isOn: $prefs.replaceCommandTab)
-            Text("Only takes effect when a shortcut below uses ⌘ + Tab. The native switcher is restored when Flit quits.")
+            Text("Moves the Tab and ` shortcuts from ⌥ to ⌘ and turns off the native app switcher while Flit runs; it comes back when Flit quits. ⌥-Space search is unchanged.")
                 .font(.caption).foregroundStyle(.secondary)
             Toggle("Space shows a full-size preview of the selected window", isOn: $prefs.previewOnSpace)
             Divider()

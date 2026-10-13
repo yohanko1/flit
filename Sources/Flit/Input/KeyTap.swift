@@ -31,7 +31,8 @@ final class KeyTap {
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var activeProfile: ShortcutProfile?
-    private var nativeSwitcherDisabled = false
+    private var disabledNativeKeys: Set<PrivateAPI.SymbolicHotKey> = []
+    private var nativeKeysApplied = false
 
     var isInstalled: Bool { tap != nil }
 
@@ -57,16 +58,24 @@ final class KeyTap {
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         tap = nil; source = nil
-        setNativeSwitcher(disabled: false)
+        setNativeHotKeys(disabled: [])
     }
 
-    /// Disables ⌘-Tab in the system so the tap sees it.
-    func setNativeSwitcher(disabled: Bool) {
-        guard disabled != nativeSwitcherDisabled else { return }
-        if PrivateAPI.setNativeSwitcher(enabled: !disabled) {
-            nativeSwitcherDisabled = disabled
-            Log.info("native ⌘-Tab \(disabled ? "disabled" : "restored")")
+    /// Disables the given native hotkeys (⌘-Tab, ⌘-`) so the tap sees them,
+    /// and restores any that are no longer wanted. The first call always
+    /// writes both states, so a previous crash can't leave ⌘-Tab dead.
+    func setNativeHotKeys(disabled wanted: Set<PrivateAPI.SymbolicHotKey>) {
+        let all: Set<PrivateAPI.SymbolicHotKey> = [.commandTab, .commandShiftTab, .commandGrave, .commandShiftGrave]
+        let toDisable = nativeKeysApplied ? wanted.subtracting(disabledNativeKeys) : wanted
+        let toRestore = nativeKeysApplied ? disabledNativeKeys.subtracting(wanted) : all.subtracting(wanted)
+        if !toDisable.isEmpty, PrivateAPI.setNativeHotKeys(Array(toDisable), enabled: false) {
+            Log.info("native hotkeys disabled: \(toDisable)")
         }
+        if !toRestore.isEmpty, PrivateAPI.setNativeHotKeys(Array(toRestore), enabled: true) {
+            Log.info("native hotkeys restored: \(toRestore)")
+        }
+        disabledNativeKeys = wanted
+        nativeKeysApplied = true
     }
 
     private static let callback: CGEventTapCallBack = { _, type, event, refcon in

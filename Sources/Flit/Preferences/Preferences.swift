@@ -1,4 +1,5 @@
 import Foundation
+import Carbon.HIToolbox
 import Combine
 import CoreGraphics
 
@@ -82,6 +83,7 @@ final class Preferences: ObservableObject {
         launchAtLogin = load("launchAtLogin", false)
         quickSwitchOnTap = load("quickSwitchOnTap", true)
         previewOnSpace = load("previewOnSpace", true)
+        if replaceCommandTab { Self.moveTabProfiles(&profiles, to: .command) }
 
         func persist<T: Encodable>(_ pub: Published<T>.Publisher, _ key: String) {
             pub.dropFirst().sink { v in
@@ -98,6 +100,10 @@ final class Preferences: ObservableObject {
         persist($animate, "animate")
         persist($showBadges, "showBadges")
         persist($replaceCommandTab, "replaceCommandTab")
+        $replaceCommandTab.dropFirst().sink { [weak self] on in
+            guard let self else { return }
+            Self.moveTabProfiles(&self.profiles, to: on ? .command : .option)
+        }.store(in: &cancellables)
         persist($showMenuBarIcon, "showMenuBarIcon")
         persist($launchAtLogin, "launchAtLogin")
         persist($quickSwitchOnTap, "quickSwitchOnTap")
@@ -105,6 +111,16 @@ final class Preferences: ObservableObject {
     }
 
     var blacklistSet: Set<String> { Set(blacklist) }
+
+    /// "Replace ⌘-Tab" means: the Tab and ` hold-profiles use ⌘ instead of ⌥.
+    /// Other keys (⌥-Space search) are left alone — ⌘-Space is Spotlight.
+    static func moveTabProfiles(_ profiles: inout [ShortcutProfile], to modifier: ShortcutProfile.HoldModifier) {
+        let from: ShortcutProfile.HoldModifier = modifier == .command ? .option : .command
+        let keys: Set<UInt16> = [UInt16(kVK_Tab), UInt16(kVK_ANSI_Grave)]
+        for i in profiles.indices where profiles[i].mode == .hold && keys.contains(profiles[i].keyCode) && profiles[i].holdModifier == from {
+            profiles[i].holdModifier = modifier
+        }
+    }
 
     func resetProfiles() { profiles = ShortcutProfile.defaults }
 }

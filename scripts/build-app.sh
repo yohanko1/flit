@@ -7,7 +7,11 @@ CONFIG="${1:-release}"
 APP="build/Flit.app"
 IDENTITY="${FLIT_SIGN_IDENTITY:-Flit Dev}"
 
-swift build -c "$CONFIG" 2>&1 | grep -vE '^\[|^Compiling|^Build complete' || true
+LOG="$(mktemp)"
+if ! swift build -c "$CONFIG" >"$LOG" 2>&1; then
+  grep -E 'error|warning' "$LOG" | head -40; rm -f "$LOG"; echo "build failed"; exit 1
+fi
+rm -f "$LOG"
 BIN="$(swift build -c "$CONFIG" --show-bin-path)/Flit"
 [ -x "$BIN" ] || { echo "build failed"; exit 1; }
 

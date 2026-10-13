@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Combine
 import ServiceManagement
 
@@ -55,8 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyNativeSwitcherSetting() {
-        let usesCommandTab = prefs.profiles.contains { $0.enabled && $0.holdModifier == .command && $0.keyCode == 48 }
-        keyTap.setNativeSwitcher(disabled: prefs.replaceCommandTab && usesCommandTab && keyTap.isInstalled)
+        guard keyTap.isInstalled else { return }
+        var wanted: Set<PrivateAPI.SymbolicHotKey> = []
+        if prefs.replaceCommandTab {
+            let cmd = prefs.profiles.filter { $0.enabled && $0.holdModifier == .command }
+            if cmd.contains(where: { $0.keyCode == UInt16(kVK_Tab) }) { wanted.formUnion([.commandTab, .commandShiftTab]) }
+            if cmd.contains(where: { $0.keyCode == UInt16(kVK_ANSI_Grave) }) { wanted.formUnion([.commandGrave, .commandShiftGrave]) }
+        }
+        keyTap.setNativeHotKeys(disabled: wanted)
     }
 
     private func setLaunchAtLogin(_ on: Bool) {

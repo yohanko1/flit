@@ -109,6 +109,16 @@ struct ShortcutProfileTests {
         #expect(search?.keyCode == UInt16(kVK_Space))
     }
 
+    @Test func testReplaceCommandTabMovesOnlyTabProfiles() {
+        var ps = ShortcutProfile.defaults
+        Preferences.moveTabProfiles(&ps, to: .command)
+        #expect(ps[0].holdModifier == .command)   // ⌘-Tab
+        #expect(ps[1].holdModifier == .command)   // ⌘-`
+        #expect(ps[2].holdModifier == .option)    // ⌥-Space search untouched
+        Preferences.moveTabProfiles(&ps, to: .option)
+        #expect(ps.map(\.holdModifier) == [.option, .option, .option])
+    }
+
     @Test func testPlainCharacterTable() {
         #expect(KeyTap.plainCharacters[kVK_ANSI_W] == "w")
         #expect(KeyTap.plainCharacters[kVK_ANSI_1] == "1")

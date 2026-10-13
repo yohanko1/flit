@@ -80,14 +80,26 @@ enum PrivateAPI {
     private typealias SetHotKeyFn = @convention(c) (Int32, Bool) -> CGError
     private static let setSymbolicHotKey = sym(skylight, "CGSSetSymbolicHotKeyEnabled", as: SetHotKeyFn.self)
 
+    private typealias IsHotKeyEnabledFn = @convention(c) (Int32) -> Bool
+    private static let isSymbolicHotKeyEnabled = sym(skylight, "CGSIsSymbolicHotKeyEnabled", as: IsHotKeyEnabledFn.self)
+
+    static func isNativeHotKeyEnabled(_ k: SymbolicHotKey) -> Bool? {
+        isSymbolicHotKeyEnabled?(k.rawValue)
+    }
+
+    /// Enables/disables native hotkeys. Returns false if the symbol is missing or any call failed.
     @discardableResult
-    static func setNativeSwitcher(enabled: Bool) -> Bool {
+    static func setNativeHotKeys(_ keys: [SymbolicHotKey], enabled: Bool) -> Bool {
         guard let fn = setSymbolicHotKey else { return false }
         var ok = true
-        for k in [SymbolicHotKey.commandTab, .commandShiftTab] {
-            ok = fn(k.rawValue, enabled) == .success && ok
-        }
+        for k in keys { ok = fn(k.rawValue, enabled) == .success && ok }
         return ok
+    }
+
+    /// Diagnostic convenience: ⌘-Tab / ⌘-Shift-Tab together.
+    @discardableResult
+    static func setNativeSwitcher(enabled: Bool) -> Bool {
+        setNativeHotKeys([.commandTab, .commandShiftTab], enabled: enabled)
     }
 
     // MARK: Front process / key window (focus without a Space-switch flicker)

@@ -46,6 +46,13 @@ enum Diagnostics {
                          (e[kCGWindowName as String] as? String ?? "") as NSString))
         }
 
+        print("\n== native ⌘-Tab hotkey ==")
+        print("before: \(String(describing: PrivateAPI.isNativeHotKeyEnabled(.commandTab)))")
+        print("disable ok: \(PrivateAPI.setNativeSwitcher(enabled: false))")
+        print("after disable: \(String(describing: PrivateAPI.isNativeHotKeyEnabled(.commandTab)))")
+        print("restore ok: \(PrivateAPI.setNativeSwitcher(enabled: true))")
+        print("after restore: \(String(describing: PrivateAPI.isNativeHotKeyEnabled(.commandTab)))")
+
         print("\n== store entries ==")
         let ws = WindowStore.shared.refresh()
         for w in ws {
