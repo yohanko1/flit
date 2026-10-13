@@ -60,7 +60,16 @@ final class Preferences: ObservableObject {
                   let v = try? JSONDecoder().decode(T.self, from: data) else { return fallback }
             return v
         }
-        profiles = load("profiles", ShortcutProfile.defaults)
+        var loaded = load("profiles", ShortcutProfile.defaults)
+        // v2 added the sticky ⌥-Space search profile; add it once to existing setups.
+        if defaults.integer(forKey: "profilesVersion") < 2 {
+            if let search = ShortcutProfile.defaults.first(where: { $0.mode == .sticky }),
+               !loaded.contains(where: { $0.keyCode == search.keyCode && $0.holdModifier == search.holdModifier }) {
+                loaded.append(search)
+            }
+            defaults.set(2, forKey: "profilesVersion")
+        }
+        profiles = loaded
         blacklist = load("blacklist", [String]())
         style = load("style", SwitcherStyle.thumbnails)
         theme = load("theme", SwitcherTheme.system)
@@ -80,6 +89,7 @@ final class Preferences: ObservableObject {
             }.store(in: &cancellables)
         }
         persist($profiles, "profiles")
+        if let data = try? JSONEncoder().encode(profiles) { defaults.set(data, forKey: "profiles") }
         persist($blacklist, "blacklist")
         persist($style, "style")
         persist($theme, "theme")

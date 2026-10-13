@@ -27,23 +27,6 @@ enum PrivateAPI {
         return fn(element, &wid) == .success && wid != 0 ? wid : nil
     }
 
-    private typealias AXRemoteTokenFn = @convention(c) (CFData) -> Unmanaged<AXUIElement>?
-    private static let axRemoteToken = sym(hiservices, "_AXUIElementCreateWithRemoteToken", as: AXRemoteTokenFn.self)
-
-    /// Builds an AX element for a window that the app's `AXWindows` list omits
-    /// (typically windows on another Space).
-    static func axElement(pid: pid_t, windowID: CGWindowID) -> AXUIElement? {
-        guard let fn = axRemoteToken else { return nil }
-        var token = Data(count: 20)
-        token.withUnsafeMutableBytes { buf in
-            buf.storeBytes(of: Int32(pid), toByteOffset: 0, as: Int32.self)
-            buf.storeBytes(of: Int32(0), toByteOffset: 4, as: Int32.self)
-            buf.storeBytes(of: Int32(0x636f636f), toByteOffset: 8, as: Int32.self)
-            buf.storeBytes(of: windowID, toByteOffset: 12, as: CGWindowID.self)
-        }
-        return fn(token as CFData)?.takeRetainedValue()
-    }
-
     // MARK: Spaces (CGS / SkyLight)
 
     typealias CGSConnectionID = Int32

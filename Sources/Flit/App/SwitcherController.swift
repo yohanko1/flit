@@ -10,6 +10,9 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
     @Published private(set) var query = ""
     @Published private(set) var isVisible = false
     @Published private(set) var previewVisible = false
+    /// Sticky: releasing the modifier no longer commits (sticky profile, or the
+    /// user started typing a search). Return commits, Esc cancels.
+    @Published private(set) var pinned = false
     @Published private(set) var columns = 1
     @Published private(set) var screen: NSScreen = NSScreen.main ?? NSScreen.screens[0]
 
@@ -36,6 +39,7 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
         screen = Screens.screen(for: prefs.screen, focusedWindowDisplay: store.focusedWindowDisplay)
         applyFilter()
         selectedIndex = windows.count > 1 ? (reverse ? windows.count - 1 : 1) : 0
+        pinned = profile.mode == .sticky
         isVisible = true
         panel.show(on: screen)
         captureThumbnails()
@@ -52,12 +56,19 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
         case .up: move(by: -columns)
         case .commit: commit()
         case .cancel: cancel()
-        case .togglePreview: togglePreview()
+        case .modifierReleased: if !pinned { commit() }
+        case .togglePreview:
+            // In a sticky session Space is just a character; preview lives on hold sessions.
+            if pinned && profile?.mode == .sticky { return }
+            togglePreview()
         case .typed(let ch):
-            if query.isEmpty, let action = Self.actionKeys[Character(ch.lowercased())] {
+            // Action letters only while holding with no search started; once a
+            // search begins (or in a sticky profile) every letter is text.
+            if query.isEmpty, !pinned, let action = Self.actionKeys[Character(ch.lowercased())] {
                 perform(action)
             } else {
                 query.append(ch)
+                pinned = true
                 applyFilter()
                 selectedIndex = 0
                 captureThumbnails()
@@ -97,6 +108,7 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
 
     private func hide() {
         isVisible = false
+        pinned = false
         previewVisible = false
         preview.hide()
         panel.hide()
@@ -187,6 +199,7 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
         guard previewVisible, let w = selected, !w.isAppPlaceholder else { preview.hide(); return }
         previewTask?.cancel()
         preview.show(window: w, image: w.thumbnail)
+        guard Screenshots.hasPermission else { return }
         previewTask = Task { [weak self] in
             guard let img = await Screenshots.shared.captureFull(w.id), !Task.isCancelled else { return }
             guard let self, self.previewVisible, self.selected?.id == w.id else { return }

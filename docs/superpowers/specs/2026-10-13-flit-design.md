@@ -37,9 +37,7 @@ daily-usable app.
   hung flit would take the system switcher with it.
 - **Private APIs are loaded with `dlsym`,** never linked directly, so a missing
   symbol degrades a feature instead of crashing at launch. Used for:
-  `_AXUIElementGetWindow` (AX element → CGWindowID),
-  `_AXUIElementCreateWithRemoteToken` (AX element for a window on another
-  Space), `CGSCopySpacesForWindows` / `CGSGetActiveSpace` /
+  `_AXUIElementGetWindow` (AX element → CGWindowID), `CGSCopySpacesForWindows` / `CGSGetActiveSpace` /
   `CGSCopyManagedDisplaySpaces` (which Space a window is on),
   `CGSSetSymbolicHotKeyEnabled` (disable the native ⌘-Tab).
 
@@ -68,7 +66,11 @@ daily-usable app.
 - **`Model/WindowStore`** — owns the list. `refresh()` enumerates
   `CGWindowListCopyWindowInfo(.optionAll)` (layer 0, alpha > 0, real size),
   joins with AX windows per app (title, minimized, element), tags Spaces via
-  CGS, and keeps MRU order from focus notifications
+  CGS. A CG window AX doesn't list is kept only if on screen or on another
+  Space; otherwise it's a popup or leftover (Chrome omnibox, closed tabs).
+  `_AXUIElementCreateWithRemoteToken` returns dead elements on macOS 26, so
+  other-Space windows are CG-only entries. Background tabs of native tab
+  groups are flagged `isTab` and hidden by default, and keeps MRU order from focus notifications
   (`NSWorkspace.didActivateApplicationNotification` + AX
   `kAXFocusedWindowChangedNotification` observers). Also exposes
   `apply(filter:)` which is pure and unit-tested.
@@ -93,8 +95,10 @@ daily-usable app.
   tap on timeout. Optional ⌘-Tab takeover via `CGSSetSymbolicHotKeyEnabled`
   (restored on quit).
 - **`Input/ShortcutProfile`** — Codable: `holdModifier` (⌥/⌘/⌃/fn), `key`
-  (Tab, `` ` ``, or any key code), `filter` overrides (e.g. current app only),
-  enabled.
+  (Tab, `` ` ``, Space, …), `mode` (`hold`: modifier release commits;
+  `sticky`: stays open until Return/Esc/click), `filter` overrides, enabled.
+  Defaults: ⌥-Tab all windows, ⌥-\` current app, ⌥-Space sticky search.
+  Decoding is tolerant so older saved settings keep working.
 - **`App/SwitcherController`** — the state machine: `hidden → open(profile)
   → selecting → commit | cancel`. Holds `selectedIndex`, `query`,
   `previewVisible`. Also handles mouse hover/click messages from the view.
@@ -124,18 +128,21 @@ daily-usable app.
    selects index 1 (the previous window) — or 0 if only one window.
 3. Panel shows on the configured screen; screenshots start concurrently and
    update entries as they land.
-4. Tab / Shift-Tab / arrows move selection; typed characters update the
-   search query and re-filter; W/M/F/H/Q run window actions and refresh.
-5. ⌥ released → `commit`: focus selected window, hide panel. Esc → cancel.
+4. Tab / Shift-Tab / arrows move selection; W/M/F/H/Q run window actions
+   (only while no search is active). Any other letter starts a search and
+   makes the session **sticky** (Switch's "sticky picker", Contexts' search
+   panel): the modifier can be released and typing continues.
+5. ⌥ released → `commit` unless sticky. Return → commit. Esc → cancel.
 
 ### Error handling
 
 - No Accessibility grant: the tap can't be created; status item shows a
   warning badge and a "Grant Accessibility…" item; the app keeps running and
   retries every 2 s until granted.
-- No Screen Recording grant: entries show app icons instead of thumbnails;
-  window titles from other apps are empty (CG hides them) so AX titles are
-  used; Permissions tab explains.
+- No Screen Recording grant (the user's chosen setup): no API yields window
+  pixels, so entries are cards in the window's real aspect ratio with icon
+  and title, and the Space preview draws an accent outline at the window's
+  frame. AX supplies titles (CG hides them without the grant).
 - AX calls on an unresponsive app time out via `AXUIElementSetMessagingTimeout`
   (250 ms) so one frozen app can't freeze the switcher.
 - Every private symbol lookup is optional; missing → feature off with a log

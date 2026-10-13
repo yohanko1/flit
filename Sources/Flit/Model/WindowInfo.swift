@@ -13,6 +13,7 @@ struct WindowInfo: Identifiable, Equatable {
     var isMinimized: Bool
     var isHidden: Bool             // owning app is hidden
     var isFullscreen: Bool
+    var isTab: Bool                // background tab of a native tab group
     var spaceIDs: [UInt64]
     var isOnActiveSpace: Bool
     var screenID: CGDirectDisplayID?
@@ -48,12 +49,12 @@ struct WindowInfo: Identifiable, Equatable {
     /// Small test/preview helper.
     static func sample(id: CGWindowID, pid: pid_t = 1, app: String = "App", title: String = "",
                        bundleID: String? = nil, minimized: Bool = false, hidden: Bool = false,
-                       fullscreen: Bool = false, onActiveSpace: Bool = true,
+                       fullscreen: Bool = false, tab: Bool = false, onActiveSpace: Bool = true,
                        screen: CGDirectDisplayID? = 1, lastFocused: Date = Date(),
                        placeholder: Bool = false) -> WindowInfo {
         WindowInfo(id: id, pid: pid, appName: app, bundleID: bundleID, title: title,
                    frame: CGRect(x: 0, y: 0, width: 800, height: 600),
-                   isMinimized: minimized, isHidden: hidden, isFullscreen: fullscreen,
+                   isMinimized: minimized, isHidden: hidden, isFullscreen: fullscreen, isTab: tab,
                    spaceIDs: [], isOnActiveSpace: onActiveSpace, screenID: screen,
                    isOnScreen: !minimized && onActiveSpace, axElement: nil, thumbnail: nil,
                    lastFocused: lastFocused, isAppPlaceholder: placeholder)

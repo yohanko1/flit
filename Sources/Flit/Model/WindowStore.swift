@@ -96,27 +96,32 @@ final class WindowStore {
         var seenPIDs = Set<pid_t>()
         for e in cgEntries {
             let app = appsByPID[e.pid]!
-            var el = axByID[e.id] ?? knownElements[e.id]
-            if el == nil, trusted { el = PrivateAPI.axElement(pid: e.pid, windowID: e.id) }
-            if let el, !el.isSwitchable {
-                // Popovers, sheets, tooltips: skip. But keep if AX can't tell us (role nil).
-                if el.role != nil { continue }
-            }
-            if let el { knownElements[e.id] = el }
+            let el = axByID[e.id] ?? knownElements[e.id]
             let spaces = PrivateAPI.spaces(for: e.id)
             let onActive = spaces.isEmpty ? e.onScreen : !Set(spaces).isDisjoint(with: activeSpaces)
+            if let el {
+                // AX knows it: keep real windows and dialogs, drop popovers/sheets/tooltips.
+                guard el.isSwitchable else { continue }
+                knownElements[e.id] = el
+            } else if trusted {
+                // AX doesn't list it. Real only if it's visible right now, or lives on
+                // another Space (AX omits those). Off-screen on this Space with no AX
+                // element = omnibox popups, closed-window leftovers, etc.
+                guard e.onScreen || (!spaces.isEmpty && !onActive) else { continue }
+            }
             let minimized = el?.isMinimized ?? false
-            // Heuristic when AX is unavailable: off-screen on the active Space and not hidden → minimized.
-            let minimizedGuess = el == nil && !e.onScreen && onActive && !app.isHidden
+            // On this Space, not minimized, yet not on screen: a background tab in a tab group.
+            let isTab = el != nil && !e.onScreen && onActive && !minimized && !app.isHidden
             let title = el?.title ?? ""
             let info = WindowInfo(
                 id: e.id, pid: e.pid,
                 appName: app.localizedName ?? "App", bundleID: app.bundleIdentifier,
                 title: title.isEmpty ? e.name : title,
                 frame: e.bounds,
-                isMinimized: minimized || minimizedGuess,
+                isMinimized: minimized,
                 isHidden: app.isHidden,
                 isFullscreen: el?.isFullscreen ?? false,
+                isTab: isTab,
                 spaceIDs: spaces, isOnActiveSpace: onActive,
                 screenID: Screens.displayID(containing: e.bounds),
                 isOnScreen: e.onScreen,
@@ -137,7 +142,7 @@ final class WindowStore {
             result.append(WindowInfo(
                 id: fakeID, pid: pid, appName: app.localizedName ?? "App", bundleID: app.bundleIdentifier,
                 title: "", frame: .zero, isMinimized: false, isHidden: app.isHidden, isFullscreen: false,
-                spaceIDs: [], isOnActiveSpace: true, screenID: nil, isOnScreen: false, axElement: nil,
+                isTab: false, spaceIDs: [], isOnActiveSpace: true, screenID: nil, isOnScreen: false, axElement: nil,
                 thumbnail: nil, lastFocused: lastFocused[fakeID] ?? now.addingTimeInterval(-3600),
                 isAppPlaceholder: true))
         }

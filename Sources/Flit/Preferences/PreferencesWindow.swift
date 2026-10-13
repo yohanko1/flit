@@ -40,7 +40,7 @@ struct GeneralTab: View {
                 .font(.caption).foregroundStyle(.secondary)
             Toggle("Space shows a full-size preview of the selected window", isOn: $prefs.previewOnSpace)
             Divider()
-            Text("While the switcher is open: Tab / Shift-Tab and arrows move, letters search, W closes, M minimizes, F toggles fullscreen, H hides the app, Q quits it, Esc cancels.")
+            Text("While the switcher is open: Tab / Shift-Tab and arrows move, W closes, M minimizes, F toggles fullscreen, H hides the app, Q quits it, Esc cancels. Any other letter starts a search; the switcher then stays open after you release the modifier — Return switches. ⌥-Space opens straight into search.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
@@ -132,11 +132,17 @@ struct ProfileEditor: View {
             Picker("Then press", selection: $profile.keyCode) {
                 ForEach(ShortcutProfile.allKeys, id: \.code) { Text($0.label).tag($0.code) }
             }
+            Picker("Behavior", selection: $profile.mode) {
+                ForEach(ShortcutProfile.Mode.allCases) { Text($0.label).tag($0) }
+            }
+            Text("Either way, typing a letter makes the switcher sticky so you can release the modifier and keep typing.")
+                .font(.caption).foregroundStyle(.secondary)
             Section("Show") {
                 Toggle("Minimized windows", isOn: $profile.filter.showMinimized)
                 Toggle("Windows of hidden apps", isOn: $profile.filter.showHidden)
                 Toggle("Windows on other Spaces", isOn: $profile.filter.showOtherSpaces)
                 Toggle("Fullscreen windows", isOn: $profile.filter.showFullscreen)
+                Toggle("Background tabs of tabbed windows", isOn: $profile.filter.showTabs)
                 Toggle("Apps with no windows", isOn: $profile.filter.showWindowlessApps)
                 Toggle("Only the current app's windows", isOn: $profile.filter.currentAppOnly)
                 Picker("Displays", selection: $profile.filter.displayScope) {
@@ -203,7 +209,7 @@ struct PermissionsTab: View {
                 detail: "Required. Lists windows, raises them, and reads the shortcut keys.",
                 request: { Permissions.requestAccessibility(); Permissions.openAccessibilitySettings() })
             row("Screen Recording", granted: sr,
-                detail: "Optional. Needed for window thumbnails and previews; without it the switcher shows app icons.",
+                detail: "Optional. Needed for live window thumbnails; without it the switcher shows a card in each window's shape with its app icon and title, and Space outlines the window's position.",
                 request: { Permissions.requestScreenRecording(); Permissions.openScreenRecordingSettings() })
             Text("If a permission stays off after granting it, remove Flit from the list in System Settings, re-add it, and relaunch.")
                 .font(.caption).foregroundStyle(.secondary)

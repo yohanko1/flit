@@ -28,12 +28,19 @@ struct SwitcherView: View {
 
     private var box: some View {
         VStack(spacing: 10) {
-            if !controller.query.isEmpty {
+            if controller.pinned || !controller.query.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
-                    Text(controller.query)
+                    if controller.query.isEmpty {
+                        Text("Type to search").foregroundStyle(.secondary)
+                    } else {
+                        Text(controller.query)
+                    }
                     Spacer()
                     Text("\(controller.windows.count)").foregroundStyle(.secondary)
+                    if controller.pinned {
+                        Text("↩ switch · esc cancel").font(.system(size: 11 * prefs.scale)).foregroundStyle(.tertiary)
+                    }
                 }
                 .font(.system(size: 14 * prefs.scale))
                 .padding(.horizontal, 8)
@@ -135,6 +142,7 @@ struct Badges: View {
             if window.isHidden { badge("eye.slash") }
             if !window.isOnActiveSpace && !window.isMinimized && !window.isAppPlaceholder { badge("square.on.square") }
             if window.isFullscreen { badge("arrow.up.left.and.arrow.down.right") }
+            if window.isTab { badge("rectangle.stack") }
         }
     }
     private func badge(_ name: String) -> some View {
@@ -152,6 +160,17 @@ struct ThumbnailCell: View {
     let scale: Double
     let badges: Bool
 
+    private var boxW: CGFloat { Layout.thumbCellWidth(scale) - 16 }
+    private var boxH: CGFloat { Layout.thumbCellHeight(scale) - 16 }
+
+    /// The window's real shape, fitted into the cell. Without Screen Recording
+    /// this is the "preview": shape + icon + title.
+    private var fittedSize: CGSize {
+        let w = max(window.frame.width, 1), h = max(window.frame.height, 1)
+        let f = min(boxW / w, boxH / h)
+        return window.isAppPlaceholder ? CGSize(width: boxW, height: boxH) : CGSize(width: w * f, height: h * f)
+    }
+
     var body: some View {
         VStack(spacing: 6) {
             ZStack(alignment: .bottomTrailing) {
@@ -161,12 +180,20 @@ struct ThumbnailCell: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                     } else {
-                        Image(nsImage: window.appIcon)
-                            .resizable()
-                            .frame(width: 64 * scale, height: 64 * scale)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(LinearGradient(colors: [.primary.opacity(0.10), .primary.opacity(0.04)],
+                                                     startPoint: .top, endPoint: .bottom))
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.primary.opacity(0.15)))
+                            Image(nsImage: window.appIcon)
+                                .resizable()
+                                .frame(width: min(64 * scale, fittedSize.height * 0.6),
+                                       height: min(64 * scale, fittedSize.height * 0.6))
+                        }
+                        .frame(width: fittedSize.width, height: fittedSize.height)
                     }
                 }
-                .frame(width: Layout.thumbCellWidth(scale) - 16, height: Layout.thumbCellHeight(scale) - 16)
+                .frame(width: boxW, height: boxH)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 if window.thumbnail != nil {
                     Image(nsImage: window.appIcon)

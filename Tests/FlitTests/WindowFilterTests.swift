@@ -45,6 +45,13 @@ struct WindowFilterTests {
         #expect(!(out.contains { $0.id == 4 }))
     }
 
+    @Test func testTabsHiddenByDefault() {
+        let tab = WindowInfo.sample(id: 9, app: "Ghostty", title: "tab 2", tab: true)
+        #expect(WindowFilter().apply([tab], context: .init()).isEmpty)
+        var f = WindowFilter(); f.showTabs = true
+        #expect(f.apply([tab], context: .init()).count == 1)
+    }
+
     @Test func testCurrentAppOnlyAndBlacklist() {
         var f = WindowFilter()
         f.currentAppOnly = true
@@ -81,6 +88,25 @@ struct ShortcutProfileTests {
         let back = try JSONDecoder().decode([ShortcutProfile].self, from: data)
         #expect(back == original)
         #expect(back[1].filter.currentAppOnly)
+    }
+
+    @Test func testDecodesProfilesSavedByOlderBuild() throws {
+        // No `mode`, no `showTabs`: both must take their defaults rather than fail.
+        let json = """
+        [{"id":"6E586D7F-0378-447D-9C2B-ED6F0ABB1DF6","name":"All","enabled":true,"holdModifier":"option","keyCode":48,
+          "filter":{"showMinimized":true,"showHidden":false,"showOtherSpaces":true,"showFullscreen":true,
+                    "showWindowlessApps":false,"displayScope":"all","currentAppOnly":false}}]
+        """
+        let back = try JSONDecoder().decode([ShortcutProfile].self, from: Data(json.utf8))
+        #expect(back.count == 1)
+        #expect(back[0].mode == .hold)
+        #expect(back[0].filter.showHidden == false)
+        #expect(back[0].filter.showTabs == false)
+    }
+
+    @Test func testDefaultsIncludeStickySearch() {
+        let search = ShortcutProfile.defaults.first { $0.mode == .sticky }
+        #expect(search?.keyCode == UInt16(kVK_Space))
     }
 
     @Test func testPlainCharacterTable() {

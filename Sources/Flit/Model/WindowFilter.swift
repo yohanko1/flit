@@ -18,9 +18,25 @@ struct WindowFilter: Codable, Equatable {
     var showHidden = true
     var showOtherSpaces = true
     var showFullscreen = true
+    var showTabs = false
     var showWindowlessApps = false
     var displayScope: DisplayScope = .all
     var currentAppOnly = false
+
+    init() {}
+
+    // Tolerant decoding: a flag added later just takes its default.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        showMinimized = try c.decodeIfPresent(Bool.self, forKey: .showMinimized) ?? true
+        showHidden = try c.decodeIfPresent(Bool.self, forKey: .showHidden) ?? true
+        showOtherSpaces = try c.decodeIfPresent(Bool.self, forKey: .showOtherSpaces) ?? true
+        showFullscreen = try c.decodeIfPresent(Bool.self, forKey: .showFullscreen) ?? true
+        showTabs = try c.decodeIfPresent(Bool.self, forKey: .showTabs) ?? false
+        showWindowlessApps = try c.decodeIfPresent(Bool.self, forKey: .showWindowlessApps) ?? false
+        displayScope = try c.decodeIfPresent(DisplayScope.self, forKey: .displayScope) ?? .all
+        currentAppOnly = try c.decodeIfPresent(Bool.self, forKey: .currentAppOnly) ?? false
+    }
 
     /// Not persisted per-profile; passed in at apply time.
     struct Context {
@@ -38,6 +54,7 @@ struct WindowFilter: Codable, Equatable {
             if !showHidden && w.isHidden { return false }
             if !showOtherSpaces && !w.isOnActiveSpace && !w.isMinimized && !w.isHidden { return false }
             if !showFullscreen && w.isFullscreen { return false }
+            if !showTabs && w.isTab { return false }
             if displayScope == .cursorScreen, let cursor = context.cursorScreenID,
                let screen = w.screenID, screen != cursor, !w.isMinimized { return false }
             if currentAppOnly, let front = context.frontmostPID, w.pid != front { return false }

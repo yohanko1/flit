@@ -7,6 +7,7 @@ import CoreGraphics
 enum SwitcherInput {
     case next, previous, up, down, left, right
     case commit, cancel
+    case modifierReleased          // controller decides: commit, or ignore when sticky
     case close, minimize, fullscreen, hide, quit
     case togglePreview
     case typed(Character), backspace
@@ -97,8 +98,7 @@ final class KeyTap {
 
         if type == .flagsChanged {
             if !flags.contains(profile.holdModifier.flag) {
-                activeProfile = nil
-                delegate?.keyTapInput(.commit)
+                delegate?.keyTapInput(.modifierReleased)
             }
             // Let modifier changes through so other apps' modifier state stays consistent.
             return Unmanaged.passUnretained(event)
@@ -115,8 +115,8 @@ final class KeyTap {
         case kVK_LeftArrow: input = .left
         case kVK_UpArrow: input = .up
         case kVK_DownArrow: input = .down
-        case kVK_Escape: activeProfile = nil; input = .cancel
-        case kVK_Return, kVK_ANSI_KeypadEnter: activeProfile = nil; input = .commit
+        case kVK_Escape: input = .cancel
+        case kVK_Return, kVK_ANSI_KeypadEnter: input = .commit
         case kVK_Space: input = .togglePreview
         case kVK_Delete, kVK_ForwardDelete: input = .backspace
         default:
