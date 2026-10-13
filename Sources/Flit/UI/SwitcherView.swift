@@ -28,6 +28,7 @@ struct SwitcherView: View {
 
     private var box: some View {
         VStack(spacing: 10) {
+            if prefs.showHints { hints }
             if controller.pinned || !controller.query.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
@@ -56,7 +57,6 @@ struct SwitcherView: View {
                 case .titles: titleList
                 }
             }
-            if prefs.showHints { hints }
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -73,19 +73,20 @@ struct SwitcherView: View {
             ? [("type", "search"), ("↩", "switch"), ("esc", "cancel"), ("⌫", "erase"), ("⇥ ↑↓←→", "move")]
             : [("type", "search"), ("W", "close"), ("M", "minimize"), ("H", "hide"), ("Q", "quit"),
                ("space", "preview"), ("release \(mod)", "switch")]
-        return HStack(spacing: 14) {
+        return HStack(spacing: 16) {
             ForEach(items, id: \.0) { key, what in
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Text(key)
-                        .font(.system(size: 10 * prefs.scale, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 5).padding(.vertical, 2)
-                        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
-                    Text(what).font(.system(size: 11 * prefs.scale))
+                        .font(.system(size: 12 * prefs.scale, weight: .bold, design: .rounded))
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(.primary.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.25)))
+                    Text(what).font(.system(size: 13 * prefs.scale, weight: .medium))
                 }
             }
         }
-        .foregroundStyle(.secondary)
-        .padding(.top, 2)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 8).padding(.bottom, 2)
     }
 
     // MARK: Styles
