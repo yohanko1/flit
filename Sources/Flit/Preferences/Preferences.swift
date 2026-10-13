@@ -48,6 +48,7 @@ final class Preferences: ObservableObject {
     @Published var scale: Double                  // 0.5 … 1.5
     @Published var animate: Bool
     @Published var showBadges: Bool
+    @Published var showHints: Bool                // key hints under the switcher
     @Published var replaceCommandTab: Bool
     @Published var showMenuBarIcon: Bool
     @Published var launchAtLogin: Bool
@@ -78,6 +79,7 @@ final class Preferences: ObservableObject {
         scale = load("scale", 1.0)
         animate = load("animate", true)
         showBadges = load("showBadges", true)
+        showHints = load("showHints", true)
         replaceCommandTab = load("replaceCommandTab", false)
         showMenuBarIcon = load("showMenuBarIcon", true)
         launchAtLogin = load("launchAtLogin", false)
@@ -99,6 +101,7 @@ final class Preferences: ObservableObject {
         persist($scale, "scale")
         persist($animate, "animate")
         persist($showBadges, "showBadges")
+        persist($showHints, "showHints")
         persist($replaceCommandTab, "replaceCommandTab")
         $replaceCommandTab.dropFirst().sink { [weak self] on in
             guard let self else { return }

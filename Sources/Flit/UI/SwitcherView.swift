@@ -56,12 +56,36 @@ struct SwitcherView: View {
                 case .titles: titleList
                 }
             }
+            if prefs.showHints { hints }
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.35), radius: 30, y: 10)
         .frame(maxWidth: controller.screen.visibleFrame.width * 0.9, maxHeight: controller.screen.visibleFrame.height * 0.9)
+    }
+
+    /// One line of key hints. Before a search: how to start one and the
+    /// action keys. During a search (sticky): how to finish it.
+    private var hints: some View {
+        let mod = controller.profileModifierSymbol
+        let items: [(String, String)] = controller.pinned
+            ? [("type", "search"), ("↩", "switch"), ("esc", "cancel"), ("⌫", "erase"), ("⇥ ↑↓←→", "move")]
+            : [("type", "search"), ("W", "close"), ("M", "minimize"), ("H", "hide"), ("Q", "quit"),
+               ("space", "preview"), ("release \(mod)", "switch")]
+        return HStack(spacing: 14) {
+            ForEach(items, id: \.0) { key, what in
+                HStack(spacing: 4) {
+                    Text(key)
+                        .font(.system(size: 10 * prefs.scale, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                    Text(what).font(.system(size: 11 * prefs.scale))
+                }
+            }
+        }
+        .foregroundStyle(.secondary)
+        .padding(.top, 2)
     }
 
     // MARK: Styles

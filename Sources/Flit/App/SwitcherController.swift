@@ -26,6 +26,9 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
 
     var keyTapIsActive: Bool { isVisible }
 
+    /// "⌥" / "⌘" … of the profile that opened the current session, for hints.
+    var profileModifierSymbol: String { profile?.holdModifier.symbol ?? "⌥" }
+
     var selected: WindowInfo? {
         windows.indices.contains(selectedIndex) ? windows[selectedIndex] : nil
     }

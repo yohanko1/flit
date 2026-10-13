@@ -67,6 +67,7 @@ struct AppearanceTab: View {
             }
             Toggle("Animate", isOn: $prefs.animate)
             Toggle("Show state badges (minimized, hidden, other Space)", isOn: $prefs.showBadges)
+            Toggle("Show key hints under the switcher", isOn: $prefs.showHints)
         }
         .formStyle(.grouped)
     }
