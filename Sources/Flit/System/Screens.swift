@@ -37,6 +37,14 @@ enum Screens {
         return CGRect(x: r.minX, y: h - r.maxY, width: r.width, height: r.height)
     }
 
+    /// The usable area of every display — below the menu bar, clear of the
+    /// Dock — in CG coordinates, ordered left to right.
+    static var usableFramesCG: [CGRect] {
+        // The conversion is its own inverse: both systems share x and flip y about the main display.
+        NSScreen.screens.map { appKitRect(fromCG: $0.visibleFrame) }
+            .sorted { $0.minX != $1.minX ? $0.minX < $1.minX : $0.minY < $1.minY }
+    }
+
     static func screen(for preference: SwitcherScreen, focusedWindowDisplay: CGDirectDisplayID?) -> NSScreen {
         switch preference {
         case .cursor: return cursorScreen ?? NSScreen.main ?? NSScreen.screens[0]

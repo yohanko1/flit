@@ -23,6 +23,12 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
     private lazy var panel = SwitcherPanel(controller: self)
     private lazy var preview = PreviewPanel()
     private var previewTask: Task<Void, Never>?
+    private var eviction: DispatchWorkItem?
+
+    /// How long thumbnails are kept after the switcher closes. Long enough
+    /// that switching back and forth shows them at once; after that their
+    /// memory is given back.
+    private static let thumbnailLifetime: TimeInterval = 120
 
     var keyTapIsActive: Bool { isVisible }
 
@@ -37,6 +43,7 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
 
     func keyTapOpen(profile: ShortcutProfile, reverse: Bool) {
         self.profile = profile
+        eviction?.cancel()
         query = ""
         allWindows = store.refresh()
         screen = Screens.screen(for: prefs.screen, focusedWindowDisplay: store.focusedWindowDisplay)
@@ -117,6 +124,16 @@ final class SwitcherController: ObservableObject, KeyTapDelegate {
         panel.hide()
         profile = nil
         query = ""
+        // The lists hold a thumbnail per window; nothing reads them while hidden.
+        windows = []
+        allWindows = []
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.isVisible else { return }
+            Screenshots.shared.clear()
+            self.store.dropThumbnails()
+        }
+        eviction = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.thumbnailLifetime, execute: work)
     }
 
     // MARK: Selection

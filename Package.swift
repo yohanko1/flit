@@ -14,6 +14,8 @@ let package = Package(
                 .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("ServiceManagement"),
                 .linkedFramework("Carbon"),
+                .linkedFramework("IOKit"),
+                .linkedLibrary("sqlite3"),
             ]
         ),
         .testTarget(

@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
@@ -35,6 +35,6 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Flit does not use Apple Events.</string>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>Flit needs Accessibility access to list, raise and close windows, and to read the keyboard shortcut.</string>
+	<string>Flit needs Accessibility access to list, raise, move and close windows, to read the switcher shortcut, and to paste from clipboard history.</string>
 </dict>
 </plist>

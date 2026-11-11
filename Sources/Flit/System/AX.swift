@@ -50,6 +50,30 @@ extension AXUIElement {
         return AXValueGetValue(v, .cgSize, &s) ? s : nil
     }
 
+    var mainWindow: AXUIElement? { attribute(kAXMainWindowAttribute, as: AXUIElement.self) }
+
+    @discardableResult
+    func setPosition(_ point: CGPoint) -> Bool {
+        var p = point
+        guard let value = AXValueCreate(.cgPoint, &p) else { return false }
+        return set(kAXPositionAttribute, value)
+    }
+
+    @discardableResult
+    func setSize(_ size: CGSize) -> Bool {
+        var s = size
+        guard let value = AXValueCreate(.cgSize, &s) else { return false }
+        return set(kAXSizeAttribute, value)
+    }
+
+    /// Size, move, size: the first resize can be clamped by the display the
+    /// window is leaving, the second lands once it has arrived.
+    func setFrame(_ frame: CGRect) {
+        setSize(frame.size)
+        setPosition(frame.origin)
+        setSize(frame.size)
+    }
+
     /// Windows the switcher should list: standard windows and dialogs, not
     /// popovers, sheets, or floating palettes.
     var isSwitchable: Bool {

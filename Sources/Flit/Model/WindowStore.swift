@@ -151,9 +151,15 @@ final class WindowStore {
         let live = Set(result.map(\.id))
         lastFocused = lastFocused.filter { live.contains($0.key) }
         knownElements = knownElements.filter { live.contains($0.key) }
+        Screenshots.shared.prune(keeping: live)
 
         windows = result
         return result
+    }
+
+    /// Lets go of every thumbnail; the next refresh starts without them.
+    func dropThumbnails() {
+        for i in windows.indices { windows[i].thumbnail = nil }
     }
 
     /// Updates the cached thumbnail on an entry without a full refresh.

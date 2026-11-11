@@ -105,5 +105,10 @@ final class PreviewPanel: NSPanel {
         orderFrontRegardless()
     }
 
-    func hide() { orderOut(nil) }
+    func hide() {
+        orderOut(nil)
+        // A full-size window capture is tens of megabytes; don't keep the last one.
+        imageView.image = nil
+        iconView.image = nil
+    }
 }

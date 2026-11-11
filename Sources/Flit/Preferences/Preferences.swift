@@ -55,6 +55,18 @@ final class Preferences: ObservableObject {
     @Published var quickSwitchOnTap: Bool         // tap (no cycling) focuses previous window
     @Published var previewOnSpace: Bool
 
+    @Published var hotkeys: HotkeyBindings
+    @Published var tilingEnabled: Bool
+    @Published var keepAwake: KeepAwakeSetting
+    @Published var dimEnabled: Bool
+    @Published var dimIntensity: Double           // 0.05 … 0.9, the overlay's opacity
+    @Published var clipboardEnabled: Bool
+    @Published var clipboardRetentionDays: Int
+    @Published var clipboardMaxItems: Int
+    @Published var clipboardIgnoreConcealed: Bool // skip what password managers mark as secret
+    @Published var clipboardIgnoredApps: [String] // bundle IDs
+    @Published var breaks: BreakSettings
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         func load<T: Decodable>(_ key: String, _ fallback: T) -> T {
@@ -85,6 +97,19 @@ final class Preferences: ObservableObject {
         launchAtLogin = load("launchAtLogin", false)
         quickSwitchOnTap = load("quickSwitchOnTap", true)
         previewOnSpace = load("previewOnSpace", true)
+
+        hotkeys = load("hotkeys", HotkeyBindings())
+        tilingEnabled = load("tilingEnabled", true)
+        // A timer that ran out while flit wasn't running counts as off.
+        keepAwake = load("keepAwake", KeepAwakeSetting(on: true, until: nil)).resolved(at: Date())
+        dimEnabled = load("dimEnabled", true)
+        dimIntensity = load("dimIntensity", 0.35)
+        clipboardEnabled = load("clipboardEnabled", true)
+        clipboardRetentionDays = load("clipboardRetentionDays", 30)
+        clipboardMaxItems = load("clipboardMaxItems", 1000)
+        clipboardIgnoreConcealed = load("clipboardIgnoreConcealed", true)
+        clipboardIgnoredApps = load("clipboardIgnoredApps", [String]())
+        breaks = load("breaks", BreakSettings())
         if replaceCommandTab { Self.moveTabProfiles(&profiles, to: .command) }
 
         func persist<T: Encodable>(_ pub: Published<T>.Publisher, _ key: String) {
@@ -111,6 +136,28 @@ final class Preferences: ObservableObject {
         persist($launchAtLogin, "launchAtLogin")
         persist($quickSwitchOnTap, "quickSwitchOnTap")
         persist($previewOnSpace, "previewOnSpace")
+
+        persist($hotkeys, "hotkeys")
+        persist($tilingEnabled, "tilingEnabled")
+        persist($keepAwake, "keepAwake")
+        persist($dimEnabled, "dimEnabled")
+        persist($dimIntensity, "dimIntensity")
+        persist($clipboardEnabled, "clipboardEnabled")
+        persist($clipboardRetentionDays, "clipboardRetentionDays")
+        persist($clipboardMaxItems, "clipboardMaxItems")
+        persist($clipboardIgnoreConcealed, "clipboardIgnoreConcealed")
+        persist($clipboardIgnoredApps, "clipboardIgnoredApps")
+        persist($breaks, "breaks")
+    }
+
+    /// The hotkeys to register right now. A feature that is off gives its
+    /// keys back to other apps; the keep-awake and dimming toggles always work.
+    var activeHotkeys: [(action: HotkeyAction, hotkey: Hotkey)] {
+        var features: Set<Feature> = [.keepAwake, .dimming]
+        if tilingEnabled { features.insert(.tiling) }
+        if clipboardEnabled { features.insert(.clipboard) }
+        if breaks.enabled { features.insert(.breaks) }
+        return hotkeys.active(features: features)
     }
 
     var blacklistSet: Set<String> { Set(blacklist) }

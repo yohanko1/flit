@@ -1,10 +1,52 @@
 import AppKit
 import SwiftUI
 
+/// Which settings pane is showing; lets other parts of flit open one directly.
+@MainActor
+final class PreferencesRoute: ObservableObject {
+    static let shared = PreferencesRoute()
+    @Published var pane: PreferencesPane? = .general
+    private init() {}
+}
+
+enum PreferencesPane: String, CaseIterable, Identifiable {
+    case general, switcher, tiling, clipboard, snippets, breaks, dimming, permissions
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: return "General"
+        case .switcher: return "Switcher"
+        case .tiling: return "Tiling"
+        case .clipboard: return "Clipboard"
+        case .snippets: return "Snippets"
+        case .breaks: return "Breaks"
+        case .dimming: return "Dimming"
+        case .permissions: return "Permissions"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: return "gear"
+        case .switcher: return "rectangle.on.rectangle"
+        case .tiling: return "rectangle.split.2x1"
+        case .clipboard: return "doc.on.clipboard"
+        case .snippets: return "text.quote"
+        case .breaks: return "cup.and.saucer"
+        case .dimming: return "circle.lefthalf.filled"
+        case .permissions: return "lock.shield"
+        }
+    }
+}
+
 @MainActor
 final class PreferencesWindow: NSWindow {
+    static let size = NSSize(width: 780, height: 560)
+
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 560, height: 460),
+        super.init(contentRect: NSRect(origin: .zero, size: Self.size),
                    styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         title = "Flit Preferences"
         isReleasedWhenClosed = false
@@ -15,26 +57,103 @@ final class PreferencesWindow: NSWindow {
 
 struct PreferencesView: View {
     @ObservedObject var prefs: Preferences
+    @ObservedObject private var route = PreferencesRoute.shared
 
     var body: some View {
-        TabView {
-            GeneralTab(prefs: prefs).tabItem { Label("General", systemImage: "gear") }
-            AppearanceTab(prefs: prefs).tabItem { Label("Appearance", systemImage: "paintbrush") }
-            ShortcutsTab(prefs: prefs).tabItem { Label("Shortcuts", systemImage: "keyboard") }
-            BlacklistTab(prefs: prefs).tabItem { Label("Blacklist", systemImage: "eye.slash") }
-            PermissionsTab().tabItem { Label("Permissions", systemImage: "lock.shield") }
+        HStack(spacing: 0) {
+            List(PreferencesPane.allCases, selection: $route.pane) { pane in
+                Label(pane.title, systemImage: pane.icon).tag(pane)
+            }
+            .listStyle(.sidebar)
+            .frame(width: 170)
+            Divider()
+            Group {
+                switch route.pane ?? .general {
+                case .general: GeneralPane(prefs: prefs)
+                case .switcher: SwitcherPane(prefs: prefs)
+                case .tiling: TilingPane(prefs: prefs)
+                case .clipboard: ClipboardPane(prefs: prefs)
+                case .snippets: SnippetsPane()
+                case .breaks: BreaksPane(prefs: prefs)
+                case .dimming: DimmingPane(prefs: prefs)
+                case .permissions: PermissionsTab()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding()
-        .frame(width: 560, height: 460)
+        .frame(width: PreferencesWindow.size.width, height: PreferencesWindow.size.height)
     }
 }
 
-struct GeneralTab: View {
+struct GeneralPane: View {
+    @ObservedObject var prefs: Preferences
+
+    private static let durations: [(label: String, seconds: TimeInterval)] = [
+        ("15 minutes", 900), ("30 minutes", 1800), ("1 hour", 3600), ("2 hours", 7200), ("5 hours", 18_000),
+    ]
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Launch at login", isOn: $prefs.launchAtLogin)
+                Toggle("Show menu bar icon", isOn: $prefs.showMenuBarIcon)
+            }
+            Section("Keep awake") {
+                Toggle("Keep the display on and the Mac awake", isOn: Binding(
+                    get: { prefs.keepAwake.on },
+                    set: { prefs.keepAwake = KeepAwakeSetting(on: $0, until: nil) }))
+                HStack {
+                    if prefs.keepAwake.on, let until = prefs.keepAwake.until {
+                        Text("Turns off at \(until.formatted(date: .omitted, time: .shortened))").foregroundStyle(.secondary)
+                    } else {
+                        Text(prefs.keepAwake.on ? "Stays on until you turn it off" : "Off").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Menu("Turn on for…") {
+                        ForEach(Self.durations, id: \.seconds) { d in
+                            Button(d.label) { prefs.keepAwake = .on(for: d.seconds, now: Date()) }
+                        }
+                    }
+                    .fixedSize()
+                }
+                HotkeyRow(action: .keepAwake, prefs: prefs)
+                Text("Closing the lid with no external display still puts the Mac to sleep.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct SwitcherPane: View {
+    @ObservedObject var prefs: Preferences
+    @State private var tab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $tab) {
+                Text("Behavior").tag(0)
+                Text("Appearance").tag(1)
+                Text("Shortcuts").tag(2)
+                Text("Blacklist").tag(3)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding([.horizontal, .top], 16)
+            switch tab {
+            case 0: SwitcherBehaviorTab(prefs: prefs)
+            case 1: AppearanceTab(prefs: prefs)
+            case 2: ShortcutsTab(prefs: prefs).padding(12)
+            default: BlacklistTab(prefs: prefs).padding(16)
+            }
+        }
+    }
+}
+
+struct SwitcherBehaviorTab: View {
     @ObservedObject var prefs: Preferences
     var body: some View {
         Form {
-            Toggle("Launch at login", isOn: $prefs.launchAtLogin)
-            Toggle("Show menu bar icon", isOn: $prefs.showMenuBarIcon)
             Toggle("Replace the system ⌘-Tab", isOn: $prefs.replaceCommandTab)
             Text("Moves the Tab and ` shortcuts from ⌥ to ⌘ and turns off the native app switcher while Flit runs; it comes back when Flit quits. ⌥-Space search is unchanged.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -202,34 +321,54 @@ struct BlacklistTab: View {
 struct PermissionsTab: View {
     @State private var ax = Permissions.accessibility
     @State private var sr = Permissions.screenRecording
+    @State private var paste = Permissions.pasteboard
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
-            row("Accessibility", granted: ax,
-                detail: "Required. Lists windows, raises them, and reads the shortcut keys.",
+            row("Accessibility", ok: ax, warn: false,
+                detail: "Required. Lists, raises, moves and resizes windows, reads the switcher keys, and pastes from clipboard history.",
+                button: ax ? nil : "Grant…",
                 request: { Permissions.requestAccessibility(); Permissions.openAccessibilitySettings() })
-            row("Screen Recording", granted: sr,
+            row("Screen Recording", ok: sr, warn: false,
                 detail: "Optional. Needed for live window thumbnails; without it the switcher shows a card in each window's shape with its app icon and title, and Space outlines the window's position.",
+                button: sr ? nil : "Grant…",
                 request: { Permissions.requestScreenRecording(); Permissions.openScreenRecordingSettings() })
+            row("Clipboard access", ok: paste == .allowed || paste == .notAsked, warn: paste == .asks,
+                detail: pasteDetail,
+                button: paste == .asks || paste == .denied ? "Open Settings…" : nil,
+                request: { Permissions.openPrivacySettings() })
             Text("If a permission stays off after granting it, remove Flit from the list in System Settings, re-add it, and relaunch.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
-        .onReceive(timer) { _ in ax = Permissions.accessibility; sr = Permissions.screenRecording }
+        .onReceive(timer) { _ in
+            ax = Permissions.accessibility
+            sr = Permissions.screenRecording
+            paste = Permissions.pasteboard
+        }
     }
 
-    private func row(_ name: String, granted: Bool, detail: String, request: @escaping () -> Void) -> some View {
+    private var pasteDetail: String {
+        switch paste {
+        case .allowed: return "Flit may read what you copy, which clipboard history needs."
+        case .notAsked: return "macOS has not asked about Flit reading the clipboard. If it does, choose Allow."
+        case .asks: return "macOS asks each time Flit reads a copy. Set Flit to Allow under Privacy & Security to keep history without prompts."
+        case .denied: return "Flit is not allowed to read the clipboard, so history stays empty. Change it under Privacy & Security."
+        }
+    }
+
+    private func row(_ name: String, ok: Bool, warn: Bool, detail: String, button: String?, request: @escaping () -> Void) -> some View {
         Section {
             HStack {
-                Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(granted ? .green : .red)
+                Image(systemName: warn ? "exclamationmark.triangle.fill" : (ok ? "checkmark.circle.fill" : "xmark.circle.fill"))
+                    .foregroundStyle(warn ? .orange : (ok ? .green : .red))
                 VStack(alignment: .leading) {
                     Text(name).bold()
                     Text(detail).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if !granted { Button("Grant…", action: request) }
+                if let button { Button(button, action: request) }
             }
         }
     }

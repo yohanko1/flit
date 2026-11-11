@@ -28,6 +28,8 @@ enum Diagnostics {
         defer { if let path { try? out.write(toFile: path, atomically: true, encoding: .utf8) } }
         print("accessibility: \(Permissions.accessibility)  screenRecording: \(Permissions.screenRecording)")
         print("active spaces: \(PrivateAPI.currentSpacesOnAllDisplays)")
+        print("clipboard access: \(Permissions.pasteboard)")
+        print("usable display frames (CG): \(Screens.usableFramesCG)")
 
         let raw = (CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
         print("\n== raw CG windows (layer 0, regular apps) ==")

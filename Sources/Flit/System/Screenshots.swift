@@ -19,6 +19,20 @@ final class Screenshots {
 
     func forget(_ id: CGWindowID) { cache.removeValue(forKey: id) }
 
+    func store(_ image: CGImage, for id: CGWindowID) { cache[id] = image }
+
+    /// Drops thumbnails of windows that no longer exist.
+    func prune(keeping live: Set<CGWindowID>) {
+        cache = cache.filter { live.contains($0.key) }
+    }
+
+    /// Drops every thumbnail and the window list they were captured from.
+    func clear() {
+        cache.removeAll()
+        content = nil
+        contentFetchedAt = .distantPast
+    }
+
     /// Refreshes the shareable-content list at most every 2 s.
     private func shareableContent() async -> SCShareableContent? {
         if let content, Date().timeIntervalSince(contentFetchedAt) < 2 { return content }
@@ -53,7 +67,7 @@ final class Screenshots {
                 for await (id, img) in group {
                     self.inflight.remove(id)
                     if let img {
-                        self.cache[id] = img
+                        self.store(img, for: id)
                         onImage(id, img)
                     }
                 }

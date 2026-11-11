@@ -27,10 +27,14 @@ protocol KeyTapDelegate: AnyObject {
 final class KeyTap {
     weak var delegate: KeyTapDelegate?
     var profiles: () -> [ShortcutProfile] = { [] }
+    /// Called for every key press, whoever it is for. Must be cheap.
+    var onKeyDown: (() -> Void)?
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var activeProfile: ShortcutProfile?
+    /// Key of a hotkey press the tap swallowed, so its key-up is swallowed too.
+    private var claimedKey: UInt16?
     private var disabledNativeKeys: Set<PrivateAPI.SymbolicHotKey> = []
     private var nativeKeysApplied = false
 
@@ -92,15 +96,38 @@ final class KeyTap {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
         let active = delegate?.keyTapIsActive ?? false
+        if type == .keyDown { onKeyDown?() }
 
         if !active {
-            guard type == .keyDown else { return Unmanaged.passUnretained(event) }
-            guard let profile = profiles().first(where: { $0.triggers(keyCode: keyCode, flags: flags) }) else {
-                return Unmanaged.passUnretained(event)
+            if type == .keyUp, claimedKey == keyCode {
+                claimedKey = nil
+                return nil
             }
-            activeProfile = profile
-            delegate?.keyTapOpen(profile: profile, reverse: flags.contains(.maskShift))
-            return nil
+            guard type == .keyDown else { return Unmanaged.passUnretained(event) }
+            // Preferences is recording a shortcut: the key press is the answer, not a command.
+            if let capture = HotkeyCenter.shared.capture, NSApp.isActive {
+                claimedKey = keyCode
+                if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                    DispatchQueue.main.async { capture(keyCode, flags) }
+                }
+                return nil
+            }
+            if let profile = profiles().first(where: { $0.triggers(keyCode: keyCode, flags: flags) }) {
+                activeProfile = profile
+                delegate?.keyTapOpen(profile: profile, reverse: flags.contains(.maskShift))
+                return nil
+            }
+            // A one-shot hotkey: take it here, ahead of any other app that registered the same keys.
+            if let action = HotkeyCenter.shared.action(keyCode: keyCode, flags: flags) {
+                claimedKey = keyCode
+                // Held keys repeat; act once. And act after returning: the
+                // system switches off a tap whose callback takes too long.
+                if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                    DispatchQueue.main.async { HotkeyCenter.shared.trigger(action) }
+                }
+                return nil
+            }
+            return Unmanaged.passUnretained(event)
         }
 
         guard let profile = activeProfile else { return Unmanaged.passUnretained(event) }

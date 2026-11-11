@@ -1,4 +1,4 @@
-.PHONY: all build debug cert install run test clean
+.PHONY: all build debug cert install run test selftest screenshots clean
 
 all: build
 
@@ -28,6 +28,15 @@ TEST_FLAGS=-Xswiftc -F -Xswiftc $(CLT)/Frameworks -Xlinker -F -Xlinker $(CLT)/Fr
   -Xlinker -rpath -Xlinker $(CLT)/Frameworks -Xlinker -rpath -Xlinker $(CLT)/usr/lib
 test:
 	@swift test $(TEST_FLAGS) 2>&1 | grep -E 'error:|✘|✔|Test run'
+
+# Drives the real hotkeys against a throwaway window (about 3 min; hands off the keyboard).
+# One section only: make selftest ONLY=dimming
+selftest:
+	@scripts/selftest.sh $(ONLY)
+
+# Regenerates docs/screenshots from sample data and a demo app (about 20 s; hands off the keyboard).
+screenshots:
+	@scripts/screenshots.sh
 
 clean:
 	@rm -rf build .build
