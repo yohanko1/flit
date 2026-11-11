@@ -15,6 +15,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Fetch the annotated tag
+        # checkout leaves the pushed tag as a bare pointer to the commit; the
+        # release notes are the tag's own message, so fetch the real tag.
+        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
       - name: Unit tests
         run: swift test
       - name: Build Flit.app
