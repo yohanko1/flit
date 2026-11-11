@@ -1,0 +1,30 @@
+name: Release
+
+# Pushing a tag like v0.2.0 builds Flit.app and publishes it as a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Unit tests
+        run: swift test
+      - name: Build Flit.app
+        # No "Flit Dev" identity here, so the script signs ad hoc.
+        run: scripts/build-app.sh release
+      - name: Package
+        run: ditto -c -k --keepParent build/Flit.app "Flit-${GITHUB_REF_NAME}.zip"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "Flit-${GITHUB_REF_NAME}.zip" \
+            --title "Flit ${GITHUB_REF_NAME#v}" --notes-from-tag
